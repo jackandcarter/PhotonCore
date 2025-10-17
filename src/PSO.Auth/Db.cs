@@ -21,6 +21,22 @@ public sealed class Db : IAsyncDisposable
         => await _conn.QueryFirstOrDefaultAsync<Account?>(@"SELECT id, username, password_hash, created_at FROM accounts WHERE username=@u LIMIT 1",
                                                          new { u = username });
 
+    public async Task<bool> VerifyPasswordAsync(string username, string password)
+    {
+        ArgumentNullException.ThrowIfNull(username);
+        ArgumentNullException.ThrowIfNull(password);
+
+        const string sql = "SELECT password_hash FROM accounts WHERE username=@u LIMIT 1";
+        var hash = await _conn.ExecuteScalarAsync<string?>(sql, new { u = username });
+
+        if (string.IsNullOrEmpty(hash))
+        {
+            return false;
+        }
+
+        return BCrypt.Net.BCrypt.Verify(password, hash);
+    }
+
     // Helper for quick health check
     public async Task<int> PingAsync() {
         var v = await _conn.ExecuteScalarAsync<string>("SELECT VERSION()");
