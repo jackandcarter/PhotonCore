@@ -1,5 +1,7 @@
 # PhotonCore Context
 
+[![CI](https://github.com/PhotonCore/PhotonCore/actions/workflows/ci.yml/badge.svg)](https://github.com/PhotonCore/PhotonCore/actions/workflows/ci.yml)
+
 PhotonCore is a clean-room reimplementation of the server stack for
 **Phantasy Star Online (PSO)**. The initial compatibility target is the
 **PC Version 2** client (Windows release, protocol compatible with Dreamcast v2).
