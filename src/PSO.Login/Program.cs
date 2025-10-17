@@ -1,8 +1,10 @@
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Net.Sockets;
 using System.Text;
+using System.Threading;
 using Microsoft.Extensions.Logging;
 using PSO.Auth;
 using PSO.Login;
@@ -128,13 +130,32 @@ async Task HandleClientAsync(TcpClient client)
         return;
     }
 
-    var worldList = PcV2Codec.WriteWorldList(new[]
-    {
-        new WorldEntry("World-1", "127.0.0.1", 12001),
-    });
+    var worlds = await FetchWorldListAsync(CancellationToken.None);
+    var worldListPayload = PcV2Codec.WriteWorldList(worlds);
 
-    await TcpHelpers.WriteFrameAsync(ns, worldList, format: FrameFormat.PcV2);
+    await TcpHelpers.WriteFrameAsync(ns, worldListPayload, format: FrameFormat.PcV2);
     client.Close();
+}
+
+async Task<WorldEntry[]> FetchWorldListAsync(CancellationToken cancellationToken)
+{
+    try
+    {
+        var httpResponse = await adminApiClient.GetAsync("/v1/worlds", cancellationToken);
+        httpResponse.EnsureSuccessStatusCode();
+
+        var payload = await httpResponse.Content.ReadFromJsonAsync<WorldListEnvelope>(cancellationToken: cancellationToken);
+        var entries = payload?.Worlds?.Select(world => new WorldEntry(world.Name, world.Address, (ushort)world.Port)).ToArray()
+                      ?? Array.Empty<WorldEntry>();
+
+        logger.LogInformation("Fetched {Count} worlds from registry", entries.Length);
+        return entries;
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Failed to fetch world list");
+        return Array.Empty<WorldEntry>();
+    }
 }
 
 record LoginAttemptDto(bool Success);

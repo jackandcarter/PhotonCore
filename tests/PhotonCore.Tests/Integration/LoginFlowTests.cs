@@ -47,8 +47,10 @@ public class LoginFlowTests
 
         Assert.True(result.AuthResponse.Success);
         Assert.Equal("ok", result.AuthResponse.Message);
-        Assert.NotEmpty(result.WorldList.Worlds);
-        Assert.True(result.WorldList.Worlds.Length >= 1);
+        var world = Assert.Single(result.WorldList.Worlds);
+        Assert.Equal("World-1", world.Name);
+        Assert.Equal("127.0.0.1", world.Address);
+        Assert.Equal((ushort)12001, world.Port);
         Assert.Equal(1, metricsProbe.SuccessCount);
         Assert.Equal(0, metricsProbe.FailureCount);
     }

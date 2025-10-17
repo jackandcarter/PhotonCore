@@ -108,7 +108,3 @@ public sealed record LoginProcessResult(AuthResponse AuthResponse, WorldList Wor
     public static LoginProcessResult Failed()
         => new(new AuthResponse(false, "invalid"), new WorldList(Array.Empty<WorldEntry>()));
 }
-
-internal sealed record WorldListEnvelope(WorldSummary[] Worlds);
-
-internal sealed record WorldSummary(string Name, string Address, int Port);

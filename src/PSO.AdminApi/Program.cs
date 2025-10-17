@@ -15,6 +15,8 @@ builder.Logging.AddSimpleConsole(options =>
 });
 
 builder.Services.AddSingleton<LoginMetrics>();
+builder.Services.Configure<WorldRegistryOptions>(builder.Configuration.GetSection("WorldRegistry"));
+builder.Services.AddSingleton<WorldRegistryService>();
 builder.Services.AddSingleton(async (_) =>
 {
     var cs = builder.Configuration.GetConnectionString("Default")!;
@@ -45,12 +47,11 @@ app.MapPost("/v1/accounts", async (Task<Db> dbTask, CreateAccount req, ILoggerFa
     return Results.Json(new { status = "created", id = acct.Id, username = acct.Username });
 });
 
-app.MapPost("/v1/worlds/register", (WorldRegistrationRequest request, ILoggerFactory loggerFactory) =>
+app.MapPost("/v1/worlds/register", (WorldRegistryService registry, WorldRegistrationRequest request, ILogger<WorldRegistryService> logger) =>
 {
-    var logger = loggerFactory.CreateLogger("WorldRegistry");
     try
     {
-        var world = WorldRegistry.Register(request);
+        var world = registry.Register(request);
         logger.LogInformation("Registered world {World} at {Address}:{Port}", world.Name, world.Address, world.Port);
         return Results.Json(new WorldRegistrationResponse("registered", world));
     }
@@ -66,10 +67,9 @@ app.MapPost("/v1/worlds/register", (WorldRegistrationRequest request, ILoggerFac
     }
 });
 
-app.MapGet("/v1/worlds", (ILoggerFactory loggerFactory) =>
+app.MapGet("/v1/worlds", (WorldRegistryService registry, ILogger<WorldRegistryService> logger) =>
 {
-    var logger = loggerFactory.CreateLogger("Worlds");
-    var worlds = WorldRegistry.GetAll();
+    var worlds = registry.GetActiveWorlds();
     logger.LogInformation("Serving world list with {Count} entries", worlds.Count);
     return Results.Json(new WorldListResponse(worlds));
 });
@@ -91,9 +91,9 @@ app.MapPost("/v1/metrics/logins", (LoginMetrics metrics, LoginAttempt attempt, I
     return Results.Accepted();
 });
 
-app.MapGet("/metrics", (LoginMetrics metrics) =>
+app.MapGet("/metrics", (LoginMetrics metrics, WorldRegistryService registry) =>
 {
-    var worlds = WorldRegistry.GetAll();
+    var worlds = registry.GetActiveWorlds();
     var payload = metrics.ToPrometheusPayload(worlds.Count);
     return Results.Text(payload, "text/plain", Encoding.UTF8);
 });
