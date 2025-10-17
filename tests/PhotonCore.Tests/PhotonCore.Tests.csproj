@@ -19,5 +19,6 @@
     <ProjectReference Include="..\..\src\PSO.Login\PSO.Login.csproj" />
     <ProjectReference Include="..\..\src\PSO.AdminApi\PSO.AdminApi.csproj" />
     <ProjectReference Include="..\..\src\PSO.Proto\PSO.Proto.csproj" />
+    <ProjectReference Include="..\..\src\PSO.Ship\PSO.Ship.csproj" />
   </ItemGroup>
 </Project>

@@ -2,12 +2,9 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Net.Sockets;
-using System.Text;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using PSO.Auth;
-using PSO.Net;
-using PSO.Proto;
 
 var bind = Environment.GetEnvironmentVariable("PSO_SHIP_BIND") ?? "127.0.0.1:12001";
 var parts = bind.Split(':'); var ep = new IPEndPoint(IPAddress.Parse(parts[0]), int.Parse(parts[1]));
@@ -48,51 +45,15 @@ while (true)
     var client = await listener.AcceptTcpClientAsync();
     _ = Task.Run(async () =>
     {
-        using var ns = client.GetStream();
-        await TcpHelpers.WriteFrameAsync(ns, Encoding.UTF8.GetBytes(TcpHelpers.Banner("SHIP")));
-        byte[]? payload;
         try
         {
-            payload = await TcpHelpers.ReadFrameAsync(ns);
-        }
-        catch (TcpHelpers.FrameTooLargeException ex)
-        {
-            Console.WriteLine($"[ship] payload too large from {client.Client.RemoteEndPoint}: {ex.Message}");
-            await TcpHelpers.WriteFrameAsync(ns, new ShipJoinResponse(false, "frame too large").Write());
-            client.Close();
-            return;
-        }
-
-        if (payload is not { Length: > 0 })
-        {
-            await TcpHelpers.WriteFrameAsync(ns, new ShipJoinResponse(false, "missing join payload").Write());
-            client.Close();
-            return;
-        }
-
-        ShipJoinRequest joinRequest;
-        try
-        {
-            joinRequest = ShipJoinRequest.Read(payload);
+            await ShipSession.RunAsync(client, tickets, Console.WriteLine);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[ship] invalid join request: {ex.Message}");
-            await TcpHelpers.WriteFrameAsync(ns, new ShipJoinResponse(false, "invalid join").Write());
-            client.Close();
-            return;
+            var remote = client.Client.RemoteEndPoint?.ToString() ?? "unknown";
+            Console.WriteLine($"[ship] event=close reason=error remote={remote} error=\"{ex.Message}\"");
         }
-
-        if (!tickets.TryValidate(joinRequest.Ticket, out var accountId))
-        {
-            await TcpHelpers.WriteFrameAsync(ns, new ShipJoinResponse(false, "invalid ticket").Write());
-            client.Close();
-            return;
-        }
-
-        Console.WriteLine($"[ship] accepted account {accountId} from {client.Client.RemoteEndPoint}");
-        await TcpHelpers.WriteFrameAsync(ns, new ShipJoinResponse(true, accountId.ToString()).Write());
-        client.Close();
     });
 }
 
