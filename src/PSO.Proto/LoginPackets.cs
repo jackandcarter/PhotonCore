@@ -10,6 +10,7 @@ public enum PacketId : ushort
     ClientHello = 0x0101,
     AuthResponse = 0x0102,
     WorldList = 0x0103,
+    SessionTicket = 0x0104,
 }
 
 public readonly struct ClientHello
@@ -127,6 +128,36 @@ public readonly struct AuthResponse
         span[sizeof(ushort) + 1] = (byte)messageBytes.Length;
         messageBytes.CopyTo(span.Slice(sizeof(ushort) + 2));
 
+        return buffer;
+    }
+}
+
+/// <summary>
+/// Carries the opaque session ticket issued after a successful login.
+/// The payload is a UTF-8 encoded, base64url ticket string.
+/// </summary>
+public readonly struct SessionTicketGrant
+{
+    public SessionTicketGrant(string ticket)
+    {
+        Ticket = ticket ?? throw new ArgumentNullException(nameof(ticket));
+    }
+
+    public string Ticket { get; }
+
+    public byte[] Write()
+    {
+        var ticketBytes = Encoding.UTF8.GetBytes(Ticket);
+        if (ticketBytes.Length > byte.MaxValue)
+        {
+            throw new InvalidOperationException("Session ticket too long to encode.");
+        }
+
+        var buffer = new byte[sizeof(ushort) + 1 + ticketBytes.Length];
+        var span = buffer.AsSpan();
+        BinaryPrimitives.WriteUInt16BigEndian(span, (ushort)PacketId.SessionTicket);
+        span[sizeof(ushort)] = (byte)ticketBytes.Length;
+        ticketBytes.CopyTo(span.Slice(sizeof(ushort) + 1));
         return buffer;
     }
 }

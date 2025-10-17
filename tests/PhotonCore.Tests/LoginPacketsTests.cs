@@ -67,6 +67,19 @@ public class LoginPacketsTests
         Assert.Equal(encoded.Length, index);
     }
 
+    [Fact]
+    public void SessionTicketGrant_EncodesOpaqueTicket()
+    {
+        var grant = new SessionTicketGrant("ticket-value");
+        var encoded = grant.Write();
+
+        Assert.Equal((ushort)PacketId.SessionTicket, (ushort)((encoded[0] << 8) | encoded[1]));
+        var length = encoded[2];
+        Assert.Equal(Encoding.UTF8.GetByteCount("ticket-value"), length);
+        var ticket = Encoding.UTF8.GetString(encoded, 3, length);
+        Assert.Equal("ticket-value", ticket);
+    }
+
     private static int AssertWorldEntry(byte[] encoded, int index, string name, string address, ushort port)
     {
         var nameLength = encoded[index++];

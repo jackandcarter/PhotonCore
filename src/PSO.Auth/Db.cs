@@ -6,7 +6,7 @@ namespace PSO.Auth;
 public interface ILoginDatabase : IAsyncDisposable
 {
     Task OpenAsync();
-    Task<bool> VerifyPasswordAsync(string username, string password);
+    Task<Account?> AuthenticateAsync(string username, string password);
 }
 
 public sealed class Db : ILoginDatabase
@@ -27,20 +27,23 @@ public sealed class Db : ILoginDatabase
         => await _conn.QueryFirstOrDefaultAsync<Account?>(@"SELECT id, username, password_hash, created_at FROM accounts WHERE username=@u LIMIT 1",
                                                          new { u = username });
 
-    public async Task<bool> VerifyPasswordAsync(string username, string password)
+    public async Task<Account?> AuthenticateAsync(string username, string password)
     {
         ArgumentNullException.ThrowIfNull(username);
         ArgumentNullException.ThrowIfNull(password);
 
-        const string sql = "SELECT password_hash FROM accounts WHERE username=@u LIMIT 1";
-        var hash = await _conn.ExecuteScalarAsync<string?>(sql, new { u = username });
+        const string sql = @"SELECT id, username, password_hash, created_at
+FROM accounts
+WHERE username=@u
+LIMIT 1";
 
-        if (string.IsNullOrEmpty(hash))
+        var account = await _conn.QueryFirstOrDefaultAsync<Account?>(sql, new { u = username });
+        if (account is null)
         {
-            return false;
+            return null;
         }
 
-        return BCrypt.Net.BCrypt.Verify(password, hash);
+        return BCrypt.Net.BCrypt.Verify(password, account.PasswordHash) ? account : null;
     }
 
     // Helper for quick health check

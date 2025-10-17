@@ -33,6 +33,7 @@ public class LoginFlowTests
 
         var metricsProbe = new MetricsProbe();
 
+        var tickets = new Tickets(Encoding.UTF8.GetBytes("0123456789abcdef0123456789abcdef"));
         var loginHandler = new LoginHandler(
             () => Task.FromResult<ILoginDatabase>(new FakeLoginDatabase()),
             httpClient,
@@ -41,7 +42,8 @@ public class LoginFlowTests
             {
                 metricsProbe.Record(success);
                 return Task.CompletedTask;
-            });
+            },
+            tickets);
 
         var result = await loginHandler.ProcessAsync(hello);
 
@@ -51,6 +53,7 @@ public class LoginFlowTests
         Assert.Equal("World-1", world.Name);
         Assert.Equal("127.0.0.1", world.Address);
         Assert.Equal((ushort)12001, world.Port);
+        Assert.False(string.IsNullOrEmpty(result.SessionTicket));
         Assert.Equal(1, metricsProbe.SuccessCount);
         Assert.Equal(0, metricsProbe.FailureCount);
     }
@@ -59,7 +62,8 @@ public class LoginFlowTests
     {
         public Task OpenAsync() => Task.CompletedTask;
 
-        public Task<bool> VerifyPasswordAsync(string username, string password) => Task.FromResult(true);
+        public Task<Account?> AuthenticateAsync(string username, string password)
+            => Task.FromResult<Account?>(new Account(Guid.NewGuid(), username, "hash", DateTimeOffset.UtcNow));
 
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
