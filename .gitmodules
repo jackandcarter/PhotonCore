@@ -1,0 +1,3 @@
+[submodule "third_party/newserv"]
+	path = third_party/newserv
+	url = https://github.com/fuzziqersoftware/newserv
