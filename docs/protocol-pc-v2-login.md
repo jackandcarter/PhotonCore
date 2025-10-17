@@ -83,6 +83,11 @@ Examples we hand-built for tests and manual verification:
 * Two worlds (`World-1` and `World-2`) –
   `51 00 A2 00 02 57 6F 72 6C 64 2D 31 00 ... 7F 00 00 01 2E E1 57 6F 72 6C 64 2D 32 00 ... C0 A8 00 05 2E E2`
 
+> **Dynamic roster:** The login tier now queries the Admin API's world
+> registry before emitting this list. Ships heartbeat with the registry every
+> few seconds, and entries expire if they have not checked in within the
+> configured TTL (30 seconds by default).
+
 ## Test vectors
 
 The unit tests under `tests/PhotonCore.Tests/PcV2CodecTests.cs` reuse the same
