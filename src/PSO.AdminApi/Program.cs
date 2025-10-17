@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using PSO.Auth;
-using BCrypt = BCrypt.Net.BCrypt;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddSingleton(async (sp) => {
@@ -19,7 +18,7 @@ app.MapGet("/healthz", async (Task<Db> dbTask) => {
 
 app.MapPost("/v1/accounts", async (Task<Db> dbTask, CreateAccount req) => {
     var db = await dbTask;
-    var hash = BCrypt.HashPassword(req.Password);
+    var hash = BCrypt.Net.BCrypt.HashPassword(req.Password);
     var acct = await db.CreateAccountAsync(req.Username, hash);
     return Results.Json(new { status = "created", id = acct.Id, username = acct.Username });
 });
