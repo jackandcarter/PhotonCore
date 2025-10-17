@@ -4,5 +4,6 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
+    <WarningsAsErrors>true</WarningsAsErrors>
   </PropertyGroup>
 </Project>

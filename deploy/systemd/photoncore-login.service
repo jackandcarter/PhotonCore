@@ -4,12 +4,12 @@ After=network.target
 
 [Service]
 Type=simple
-WorkingDirectory=/opt/photoncore
-ExecStart=/usr/bin/dotnet /opt/photoncore/PSO.Login.dll
+WorkingDirectory=/opt/photoncore/login
+ExecStart=/usr/bin/dotnet /opt/photoncore/login/PSO.Login.dll
 Restart=on-failure
-Environment=PSO_LOGIN_BIND=0.0.0.0:12000
-Environment=PCORE_DB=server=127.0.0.1;port=3306;user=psoapp;password=psopass;database=pso;
-Environment=PCORE_ADMIN_URL=http://127.0.0.1:5080
+User=photoncore-login
+Group=photoncore-login
+EnvironmentFile=/etc/default/photoncore-login
 
 [Install]
 WantedBy=multi-user.target

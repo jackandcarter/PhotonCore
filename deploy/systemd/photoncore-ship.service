@@ -4,14 +4,12 @@ After=network.target
 
 [Service]
 Type=simple
-WorkingDirectory=/opt/photoncore
-ExecStart=/usr/bin/dotnet /opt/photoncore/PSO.Ship.dll
+WorkingDirectory=/opt/photoncore/ship
+ExecStart=/usr/bin/dotnet /opt/photoncore/ship/PSO.Ship.dll
 Restart=on-failure
-Environment=PSO_SHIP_BIND=0.0.0.0:12001
-Environment=PCORE_ADMIN_URL=http://127.0.0.1:5080
-Environment=PCORE_SHIP_NAME=World-1
-Environment=PCORE_SHIP_ADDR=127.0.0.1
-Environment=PCORE_SHIP_PORT=12001
+User=photoncore-ship
+Group=photoncore-ship
+EnvironmentFile=/etc/default/photoncore-ship
 
 [Install]
 WantedBy=multi-user.target
