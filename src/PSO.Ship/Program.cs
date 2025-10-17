@@ -5,7 +5,9 @@ using System.Net.Sockets;
 using System.Text;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
+using PSO.Auth;
 using PSO.Net;
+using PSO.Proto;
 
 var bind = Environment.GetEnvironmentVariable("PSO_SHIP_BIND") ?? "127.0.0.1:12001";
 var parts = bind.Split(':'); var ep = new IPEndPoint(IPAddress.Parse(parts[0]), int.Parse(parts[1]));
@@ -18,6 +20,17 @@ var shipName = Environment.GetEnvironmentVariable("PCORE_SHIP_NAME") ?? "World-1
 var shipAddress = Environment.GetEnvironmentVariable("PCORE_SHIP_ADDR") ?? parts[0];
 var shipPortValue = Environment.GetEnvironmentVariable("PCORE_SHIP_PORT");
 var shipPort = shipPortValue is { Length: > 0 } ? int.Parse(shipPortValue) : int.Parse(parts[1]);
+
+Tickets tickets;
+try
+{
+    tickets = Tickets.FromEnvironment();
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"[ship] missing ticket secret: {ex.Message}");
+    return;
+}
 
 await RegisterShipAsync(adminApiClient);
 
@@ -37,10 +50,48 @@ while (true)
     {
         using var ns = client.GetStream();
         await TcpHelpers.WriteFrameAsync(ns, Encoding.UTF8.GetBytes(TcpHelpers.Banner("SHIP")));
-        var payload = await TcpHelpers.ReadFrameAsync(ns);
-        if (payload is { Length: > 0 }) {
-            await TcpHelpers.WriteFrameAsync(ns, Encoding.UTF8.GetBytes("SHIP " + Encoding.UTF8.GetString(payload)));
+        byte[]? payload;
+        try
+        {
+            payload = await TcpHelpers.ReadFrameAsync(ns);
         }
+        catch (TcpHelpers.FrameTooLargeException ex)
+        {
+            Console.WriteLine($"[ship] payload too large from {client.Client.RemoteEndPoint}: {ex.Message}");
+            await TcpHelpers.WriteFrameAsync(ns, new ShipJoinResponse(false, "frame too large").Write());
+            client.Close();
+            return;
+        }
+
+        if (payload is not { Length: > 0 })
+        {
+            await TcpHelpers.WriteFrameAsync(ns, new ShipJoinResponse(false, "missing join payload").Write());
+            client.Close();
+            return;
+        }
+
+        ShipJoinRequest joinRequest;
+        try
+        {
+            joinRequest = ShipJoinRequest.Read(payload);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[ship] invalid join request: {ex.Message}");
+            await TcpHelpers.WriteFrameAsync(ns, new ShipJoinResponse(false, "invalid join").Write());
+            client.Close();
+            return;
+        }
+
+        if (!tickets.TryValidate(joinRequest.Ticket, out var accountId))
+        {
+            await TcpHelpers.WriteFrameAsync(ns, new ShipJoinResponse(false, "invalid ticket").Write());
+            client.Close();
+            return;
+        }
+
+        Console.WriteLine($"[ship] accepted account {accountId} from {client.Client.RemoteEndPoint}");
+        await TcpHelpers.WriteFrameAsync(ns, new ShipJoinResponse(true, accountId.ToString()).Write());
         client.Close();
     });
 }

@@ -13,6 +13,7 @@ public static class PcV2Codec
     private const byte ClientHelloCommand = 0x93;
     private const byte AuthResponseCommand = 0xA1;
     private const byte WorldListCommand = 0xA2;
+    private const byte SessionTicketCommand = 0xA3;
 
     private const int ClientHelloBodyLength = 0xAC;
     private const int SerialOffset = 0x18;
@@ -114,6 +115,26 @@ public static class PcV2Codec
             BinaryPrimitives.WriteUInt16BigEndian(buffer.AsSpan(offset, 2), entry.Port);
             offset += 2;
         }
+
+        return buffer;
+    }
+
+    public static byte[] WriteSessionTicket(string ticket)
+    {
+        ArgumentNullException.ThrowIfNull(ticket);
+
+        var ticketBytes = Encoding.ASCII.GetBytes(ticket);
+        if (ticketBytes.Length > byte.MaxValue)
+        {
+            throw new ArgumentOutOfRangeException(nameof(ticket), "PC v2 session ticket must fit in one byte length field.");
+        }
+
+        var totalLength = 4 + 1 + ticketBytes.Length;
+        var buffer = new byte[totalLength];
+
+        WriteHeader(buffer, SessionTicketCommand, (ushort)totalLength);
+        buffer[4] = (byte)ticketBytes.Length;
+        ticketBytes.CopyTo(buffer.AsSpan(5));
 
         return buffer;
     }

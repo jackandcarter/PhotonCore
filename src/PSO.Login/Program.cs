@@ -28,6 +28,17 @@ using var loggerFactory = LoggerFactory.Create(builder =>
 
 var logger = loggerFactory.CreateLogger("PSO.Login");
 
+Tickets tickets;
+try
+{
+    tickets = Tickets.FromEnvironment();
+}
+catch (Exception ex)
+{
+    logger.LogCritical(ex, "PCORE_TICKET_SECRET is required to issue session tickets");
+    return;
+}
+
 const int MaxUsernameLength = 32;
 const int MaxPasswordLength = 64;
 var listener = new TcpListener(ep);
@@ -143,18 +154,19 @@ async Task HandleClientAsync(TcpClient client)
         return;
     }
 
-    bool isValid;
+    Account? account;
     try
     {
         await using var db = await CreateDatabaseAsync();
-        isValid = await db.VerifyPasswordAsync(usernameForAuth, passwordForAuth);
+        account = await db.AuthenticateAsync(usernameForAuth, passwordForAuth);
     }
     catch (Exception ex)
     {
         logger.LogError(ex, "Authentication error for {Username}", usernameForAuth);
-        isValid = false;
+        account = null;
     }
 
+    var isValid = account is not null;
     if (!isValid)
     {
         logger.LogInformation("Authentication failed for {Username} from {Endpoint}", usernameForAuth, client.Client.RemoteEndPoint);
@@ -175,6 +187,9 @@ async Task HandleClientAsync(TcpClient client)
         client.Close();
         return;
     }
+
+    var (ticket, _) = tickets.Issue(account!.Id);
+    await TcpHelpers.WriteFrameAsync(ns, PcV2Codec.WriteSessionTicket(ticket), format: FrameFormat.PcV2);
 
     var worlds = await FetchWorldListAsync(CancellationToken.None);
     var worldListPayload = PcV2Codec.WriteWorldList(worlds);

@@ -63,6 +63,14 @@ public class PcV2CodecTests
         Assert.Equal(expected, payload);
     }
 
+    [Fact]
+    public void WriteSessionTicketEncodesOpaquePayload()
+    {
+        var payload = PcV2Codec.WriteSessionTicket("abc");
+        var expected = new byte[] { 0x08, 0x00, 0xA3, 0x00, 0x03, 0x61, 0x62, 0x63 };
+        Assert.Equal(expected, payload);
+    }
+
     private static void WriteFixed(Span<byte> destination, string value)
     {
         var bytes = Encoding.ASCII.GetBytes(value);

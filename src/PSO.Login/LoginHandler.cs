@@ -12,17 +12,20 @@ public sealed class LoginHandler
     private readonly HttpClient _adminApiClient;
     private readonly ILogger<LoginHandler> _logger;
     private readonly Func<bool, Task> _reportMetricsAsync;
+    private readonly Tickets _tickets;
 
     public LoginHandler(
         Func<Task<ILoginDatabase>> dbFactory,
         HttpClient adminApiClient,
         ILogger<LoginHandler> logger,
-        Func<bool, Task> reportMetricsAsync)
+        Func<bool, Task> reportMetricsAsync,
+        Tickets tickets)
     {
         _dbFactory = dbFactory ?? throw new ArgumentNullException(nameof(dbFactory));
         _adminApiClient = adminApiClient ?? throw new ArgumentNullException(nameof(adminApiClient));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _reportMetricsAsync = reportMetricsAsync ?? throw new ArgumentNullException(nameof(reportMetricsAsync));
+        _tickets = tickets ?? throw new ArgumentNullException(nameof(tickets));
     }
 
     public async Task<LoginProcessResult> ProcessAsync(ClientHello hello, CancellationToken cancellationToken = default)
@@ -46,7 +49,8 @@ public sealed class LoginHandler
 
         await using (db)
         {
-            var isValid = await VerifyCredentialsAsync(db, hello);
+            var account = await AuthenticateAsync(db, hello);
+            var isValid = account is not null;
             await _reportMetricsAsync(isValid);
 
             if (!isValid)
@@ -55,25 +59,26 @@ public sealed class LoginHandler
             }
 
             var worldList = await FetchWorldListAsync(cancellationToken);
-            return LoginProcessResult.Success(worldList);
+            var (token, _) = _tickets.Issue(account!.Id);
+            return LoginProcessResult.Success(worldList, token);
         }
     }
 
-    private async Task<bool> VerifyCredentialsAsync(ILoginDatabase db, ClientHello hello)
+    private async Task<Account?> AuthenticateAsync(ILoginDatabase db, ClientHello hello)
     {
         try
         {
-            var result = await db.VerifyPasswordAsync(hello.Username, hello.Password);
-            if (!result)
+            var account = await db.AuthenticateAsync(hello.Username, hello.Password);
+            if (account is null)
             {
                 _logger.LogInformation("Login rejected for {Username}", hello.Username);
             }
-            return result;
+            return account;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Authentication error for {Username}", hello.Username);
-            return false;
+            return null;
         }
     }
 
@@ -100,11 +105,11 @@ public sealed class LoginHandler
     }
 }
 
-public sealed record LoginProcessResult(AuthResponse AuthResponse, WorldList WorldList)
+public sealed record LoginProcessResult(AuthResponse AuthResponse, WorldList WorldList, string? SessionTicket)
 {
-    public static LoginProcessResult Success(WorldList worlds)
-        => new(new AuthResponse(true, "ok"), worlds);
+    public static LoginProcessResult Success(WorldList worlds, string ticket)
+        => new(new AuthResponse(true, "ok"), worlds, ticket);
 
     public static LoginProcessResult Failed()
-        => new(new AuthResponse(false, "invalid"), new WorldList(Array.Empty<WorldEntry>()));
+        => new(new AuthResponse(false, "invalid"), new WorldList(Array.Empty<WorldEntry>()), null);
 }
