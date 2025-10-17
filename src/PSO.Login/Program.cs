@@ -28,6 +28,8 @@ using var loggerFactory = LoggerFactory.Create(builder =>
 
 var logger = loggerFactory.CreateLogger("PSO.Login");
 
+const int MaxUsernameLength = 32;
+const int MaxPasswordLength = 64;
 var listener = new TcpListener(ep);
 listener.Start();
 logger.LogInformation("Login server listening on {Bind}", bind);
@@ -37,11 +39,13 @@ var connectionString = Environment.GetEnvironmentVariable("PCORE_DB")
 
 var adminApiUrl = Environment.GetEnvironmentVariable("PCORE_ADMIN_URL") ?? "http://127.0.0.1:5080";
 var adminApiClient = new HttpClient { BaseAddress = new Uri(adminApiUrl) };
+var rateLimiter = new LoginRateLimiter(5, TimeSpan.FromSeconds(60));
 
 while (true)
 {
     var client = await listener.AcceptTcpClientAsync();
     var remote = client.Client.RemoteEndPoint;
+    logger.LogInformation("Client connected {Endpoint}", remote);
     _ = Task.Run(async () =>
     {
         try
@@ -87,7 +91,25 @@ async Task HandleClientAsync(TcpClient client)
     using var ns = client.GetStream();
     await TcpHelpers.WriteFrameAsync(ns, Encoding.UTF8.GetBytes(TcpHelpers.Banner("LOGIN")));
 
-    var frame = await TcpHelpers.ReadFrameAsync(ns, format: FrameFormat.PcV2);
+    using var readTimeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+    byte[]? frame;
+    try
+    {
+        frame = await TcpHelpers.ReadFrameAsync(ns, readTimeoutCts.Token, FrameFormat.PcV2);
+    }
+    catch (OperationCanceledException)
+    {
+        logger.LogWarning("Timed out waiting for client hello from {Endpoint}", client.Client.RemoteEndPoint);
+        client.Close();
+        return;
+    }
+    catch (TcpHelpers.FrameTooLargeException ex)
+    {
+        logger.LogWarning(ex, "Frame exceeded limit from {Endpoint}", client.Client.RemoteEndPoint);
+        client.Close();
+        return;
+    }
+
     if (frame is not { Length: > 0 })
     {
         logger.LogWarning("Received empty payload from {Endpoint}", client.Client.RemoteEndPoint);
@@ -102,22 +124,46 @@ async Task HandleClientAsync(TcpClient client)
         return;
     }
 
-    logger.LogInformation("Processing PC v2 login for {Username}", hello.Username);
+    logger.LogInformation("Parsed client hello for {Username} from {Endpoint}", hello.Username, client.Client.RemoteEndPoint);
+
+    var usernameForAuth = hello.Username.Length > MaxUsernameLength
+        ? hello.Username[..MaxUsernameLength]
+        : hello.Username;
+    var passwordForAuth = hello.Password.Length > MaxPasswordLength
+        ? hello.Password[..MaxPasswordLength]
+        : hello.Password;
+
+    var remoteAddress = (client.Client.RemoteEndPoint as IPEndPoint)?.Address ?? IPAddress.None;
+    var now = DateTimeOffset.UtcNow;
+    if (rateLimiter.IsThrottled(remoteAddress, usernameForAuth, now))
+    {
+        logger.LogWarning("Throttled login attempt for {Username} from {Endpoint}", usernameForAuth, client.Client.RemoteEndPoint);
+        await TcpHelpers.WriteFrameAsync(ns, PcV2Codec.WriteAuthResponse(false, "invalid"), format: FrameFormat.PcV2);
+        client.Close();
+        return;
+    }
 
     bool isValid;
     try
     {
         await using var db = await CreateDatabaseAsync();
-        isValid = await db.VerifyPasswordAsync(hello.Username, hello.Password);
-        if (!isValid)
-        {
-            logger.LogInformation("Login rejected for {Username}", hello.Username);
-        }
+        isValid = await db.VerifyPasswordAsync(usernameForAuth, passwordForAuth);
     }
     catch (Exception ex)
     {
-        logger.LogError(ex, "Authentication error for {Username}", hello.Username);
+        logger.LogError(ex, "Authentication error for {Username}", usernameForAuth);
         isValid = false;
+    }
+
+    if (!isValid)
+    {
+        logger.LogInformation("Authentication failed for {Username} from {Endpoint}", usernameForAuth, client.Client.RemoteEndPoint);
+        rateLimiter.RecordFailure(remoteAddress, usernameForAuth, now);
+    }
+    else
+    {
+        rateLimiter.Reset(remoteAddress, usernameForAuth);
+        logger.LogInformation("Authentication succeeded for {Username} from {Endpoint}", usernameForAuth, client.Client.RemoteEndPoint);
     }
 
     await ReportLoginMetricsAsync(isValid);
