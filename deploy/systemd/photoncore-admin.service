@@ -1,0 +1,14 @@
+[Unit]
+Description=PhotonCore Admin API
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/photoncore
+ExecStart=/usr/bin/dotnet /opt/photoncore/PSO.AdminApi.dll
+Restart=on-failure
+Environment=ASPNETCORE_URLS=http://0.0.0.0:5080
+Environment=PCORE_DB=server=127.0.0.1;port=3306;user=psoapp;password=psopass;database=pso;
+
+[Install]
+WantedBy=multi-user.target
