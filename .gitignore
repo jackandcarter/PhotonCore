@@ -416,3 +416,38 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+
+# ---- PhotonCore additions ----
+
+# Local env & secrets
+.env
+*.env.local
+secrets.json
+appsettings.Development.json
+appsettings.Local.json
+
+# macOS / editors
+.DS_Store
+.idea/
+.vscode/*-workspace.json
+
+# Test/coverage artifacts (extra)
+TestResults/
+coverage/
+coverage-report/
+
+# Local publish/output beyond the template's defaults
+/publish/
+/dist/
+
+# MySQL dumps created during debugging (keep migrations/, ignore ad-hoc dumps)
+dump.sql
+*.bak.sql
+
+# Submodule build artifacts (keep the submodule sources tracked)
+third_party/newserv/**/[Bb]uild/
+third_party/newserv/**/[Oo]bj/
+third_party/newserv/**/[Bb]in/
+third_party/newserv/**/.vs/
+
