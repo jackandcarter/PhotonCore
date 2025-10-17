@@ -3,7 +3,13 @@ using Dapper;
 using MySqlConnector;
 
 namespace PSO.Auth;
-public sealed class Db : IAsyncDisposable
+public interface ILoginDatabase : IAsyncDisposable
+{
+    Task OpenAsync();
+    Task<bool> VerifyPasswordAsync(string username, string password);
+}
+
+public sealed class Db : ILoginDatabase
 {
     private readonly MySqlConnection _conn;
     public Db(string cs) => _conn = new MySqlConnection(cs);
