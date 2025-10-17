@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using PSO.AdminApi;
 using PSO.Auth;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -21,6 +22,29 @@ app.MapPost("/v1/accounts", async (Task<Db> dbTask, CreateAccount req) => {
     var hash = BCrypt.Net.BCrypt.HashPassword(req.Password);
     var acct = await db.CreateAccountAsync(req.Username, hash);
     return Results.Json(new { status = "created", id = acct.Id, username = acct.Username });
+});
+
+app.MapPost("/v1/worlds/register", (WorldRegistrationRequest request) =>
+{
+    try
+    {
+        var world = WorldRegistry.Register(request);
+        return Results.Json(new WorldRegistrationResponse("registered", world));
+    }
+    catch (ArgumentException ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+    catch (ArgumentOutOfRangeException ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+});
+
+app.MapGet("/v1/worlds", () =>
+{
+    var worlds = WorldRegistry.GetAll();
+    return Results.Json(new WorldListResponse(worlds));
 });
 
 app.Run("http://127.0.0.1:5080");

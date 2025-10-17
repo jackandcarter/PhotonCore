@@ -1,6 +1,10 @@
 using System.Net;
+using System.Net.Http;
+using System.Net.Http.Json;
 using System.Net.Sockets;
 using System.Text;
+using System.Text.Json.Serialization;
+using System.Linq;
 using PSO.Auth;
 using PSO.Net;
 using PSO.Proto;
@@ -13,11 +17,8 @@ Console.WriteLine($"[login] listening on {bind}");
 var connectionString = Environment.GetEnvironmentVariable("PCORE_DB")
                       ?? "server=127.0.0.1;port=3306;user=psoapp;password=psopass;database=pso;";
 
-var worlds = new WorldList(
-    new[]
-    {
-        new WorldEntry("World-1", "127.0.0.1", 12001),
-    });
+var adminApiUrl = Environment.GetEnvironmentVariable("PCORE_ADMIN_URL") ?? "http://127.0.0.1:5080";
+var adminApiClient = new HttpClient { BaseAddress = new Uri(adminApiUrl) };
 
 while (true)
 {
@@ -88,6 +89,36 @@ async Task HandleClientAsync(TcpClient client)
         return;
     }
 
-    await TcpHelpers.WriteFrameAsync(ns, worlds.Write());
+    var worldList = await FetchWorldListAsync();
+    await TcpHelpers.WriteFrameAsync(ns, worldList.Write());
     client.Close();
 }
+
+async Task<WorldList> FetchWorldListAsync()
+{
+    try
+    {
+        var httpResponse = await adminApiClient.GetAsync("/v1/worlds");
+        httpResponse.EnsureSuccessStatusCode();
+
+        var payload = await httpResponse.Content.ReadFromJsonAsync<WorldListEnvelope>();
+        var entries = payload?.Worlds?.Select(world =>
+                new WorldEntry(world.Name, world.Address, (ushort)world.Port))
+            .ToArray() ?? Array.Empty<WorldEntry>();
+
+        return new WorldList(entries);
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"[login] failed to fetch world list: {ex.Message}");
+        return new WorldList(Array.Empty<WorldEntry>());
+    }
+}
+
+internal sealed record WorldListEnvelope(
+    [property: JsonPropertyName("worlds")] WorldSummary[] Worlds);
+
+internal sealed record WorldSummary(
+    [property: JsonPropertyName("name")] string Name,
+    [property: JsonPropertyName("address")] string Address,
+    [property: JsonPropertyName("port")] int Port);

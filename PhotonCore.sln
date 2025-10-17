@@ -5,6 +5,8 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{827E0CD3-B72D-47B6-A68D-7590B98EB39B}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{13660C88-ADCD-4142-86F3-CDFA17E9B1C7}"
+EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PSO.AdminApi", "src\PSO.AdminApi\PSO.AdminApi.csproj", "{C18D537E-42D5-415D-B408-4EC1A6628D83}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PSO.Auth", "src\PSO.Auth\PSO.Auth.csproj", "{7E9D562F-75BC-4262-99B5-8AA4FD65DB7A}"
@@ -18,6 +20,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PSO.Proxy", "src\PSO.Proxy\PSO.Proxy.csproj", "{7A72133B-7931-43C3-A8DB-6F9B63B63001}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PSO.Ship", "src\PSO.Ship\PSO.Ship.csproj", "{CFE53E1A-EFA3-4B21-A504-6D10B1F0A054}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PhotonCore.Tests", "tests\PhotonCore.Tests\PhotonCore.Tests.csproj", "{A5880F83-FE04-4B89-B278-CED766E18775}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -111,19 +115,32 @@ Global
 		{CFE53E1A-EFA3-4B21-A504-6D10B1F0A054}.Release|Any CPU.Build.0 = Release|Any CPU
 		{CFE53E1A-EFA3-4B21-A504-6D10B1F0A054}.Release|x64.ActiveCfg = Release|Any CPU
 		{CFE53E1A-EFA3-4B21-A504-6D10B1F0A054}.Release|x64.Build.0 = Release|Any CPU
-		{CFE53E1A-EFA3-4B21-A504-6D10B1F0A054}.Release|x86.ActiveCfg = Release|Any CPU
-		{CFE53E1A-EFA3-4B21-A504-6D10B1F0A054}.Release|x86.Build.0 = Release|Any CPU
-	EndGlobalSection
-	GlobalSection(SolutionProperties) = preSolution
-		HideSolutionNode = FALSE
-	EndGlobalSection
-	GlobalSection(NestedProjects) = preSolution
-		{C18D537E-42D5-415D-B408-4EC1A6628D83} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+                {CFE53E1A-EFA3-4B21-A504-6D10B1F0A054}.Release|x86.ActiveCfg = Release|Any CPU
+                {CFE53E1A-EFA3-4B21-A504-6D10B1F0A054}.Release|x86.Build.0 = Release|Any CPU
+                {A5880F83-FE04-4B89-B278-CED766E18775}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+                {A5880F83-FE04-4B89-B278-CED766E18775}.Debug|Any CPU.Build.0 = Debug|Any CPU
+                {A5880F83-FE04-4B89-B278-CED766E18775}.Debug|x64.ActiveCfg = Debug|Any CPU
+                {A5880F83-FE04-4B89-B278-CED766E18775}.Debug|x64.Build.0 = Debug|Any CPU
+                {A5880F83-FE04-4B89-B278-CED766E18775}.Debug|x86.ActiveCfg = Debug|Any CPU
+                {A5880F83-FE04-4B89-B278-CED766E18775}.Debug|x86.Build.0 = Debug|Any CPU
+                {A5880F83-FE04-4B89-B278-CED766E18775}.Release|Any CPU.ActiveCfg = Release|Any CPU
+                {A5880F83-FE04-4B89-B278-CED766E18775}.Release|Any CPU.Build.0 = Release|Any CPU
+                {A5880F83-FE04-4B89-B278-CED766E18775}.Release|x64.ActiveCfg = Release|Any CPU
+                {A5880F83-FE04-4B89-B278-CED766E18775}.Release|x64.Build.0 = Release|Any CPU
+                {A5880F83-FE04-4B89-B278-CED766E18775}.Release|x86.ActiveCfg = Release|Any CPU
+                {A5880F83-FE04-4B89-B278-CED766E18775}.Release|x86.Build.0 = Release|Any CPU
+        EndGlobalSection
+        GlobalSection(SolutionProperties) = preSolution
+                HideSolutionNode = FALSE
+        EndGlobalSection
+        GlobalSection(NestedProjects) = preSolution
+                {C18D537E-42D5-415D-B408-4EC1A6628D83} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{7E9D562F-75BC-4262-99B5-8AA4FD65DB7A} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{4A25BAD1-B7F8-4B7D-B760-7848A2AF1CA5} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{BE1C7CC4-EA1A-43EF-9D9B-C6A3EF864554} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{F47F873B-DD1F-4AFE-8D0E-C5A281E9AB8F} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
-		{7A72133B-7931-43C3-A8DB-6F9B63B63001} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
-		{CFE53E1A-EFA3-4B21-A504-6D10B1F0A054} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
-	EndGlobalSection
+                {7A72133B-7931-43C3-A8DB-6F9B63B63001} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+                {CFE53E1A-EFA3-4B21-A504-6D10B1F0A054} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+                {A5880F83-FE04-4B89-B278-CED766E18775} = {13660C88-ADCD-4142-86F3-CDFA17E9B1C7}
+        EndGlobalSection
 EndGlobal
