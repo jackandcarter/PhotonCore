@@ -8,6 +8,7 @@ using PSO.Auth;
 using PSO.Login;
 using PSO.Net;
 using PSO.Proto;
+using PSO.Proto.Compat;
 
 var bind = Environment.GetEnvironmentVariable("PSO_LOGIN_BIND") ?? "127.0.0.1:12000";
 var parts = bind.Split(':');
@@ -34,8 +35,6 @@ var connectionString = Environment.GetEnvironmentVariable("PCORE_DB")
 
 var adminApiUrl = Environment.GetEnvironmentVariable("PCORE_ADMIN_URL") ?? "http://127.0.0.1:5080";
 var adminApiClient = new HttpClient { BaseAddress = new Uri(adminApiUrl) };
-
-var loginHandler = new LoginHandler(CreateDatabaseAsync, adminApiClient, loggerFactory.CreateLogger<LoginHandler>(), ReportLoginMetricsAsync);
 
 while (true)
 {
@@ -86,37 +85,55 @@ async Task HandleClientAsync(TcpClient client)
     using var ns = client.GetStream();
     await TcpHelpers.WriteFrameAsync(ns, Encoding.UTF8.GetBytes(TcpHelpers.Banner("LOGIN")));
 
-    var payload = await TcpHelpers.ReadFrameAsync(ns);
-    if (payload is not { Length: > 0 })
+    var frame = await TcpHelpers.ReadFrameAsync(ns, format: FrameFormat.PcV2);
+    if (frame is not { Length: > 0 })
     {
         logger.LogWarning("Received empty payload from {Endpoint}", client.Client.RemoteEndPoint);
         client.Close();
         return;
     }
 
-    ClientHello hello;
+    if (!PcV2Codec.TryReadClientHello(frame, out var hello))
+    {
+        logger.LogWarning("Invalid PC v2 client hello received from {Endpoint}", client.Client.RemoteEndPoint);
+        client.Close();
+        return;
+    }
+
+    logger.LogInformation("Processing PC v2 login for {Username}", hello.Username);
+
+    bool isValid;
     try
     {
-        hello = ClientHello.Read(payload);
-        logger.LogInformation("Processing login for {Username}", hello.Username);
+        await using var db = await CreateDatabaseAsync();
+        isValid = await db.VerifyPasswordAsync(hello.Username, hello.Password);
+        if (!isValid)
+        {
+            logger.LogInformation("Login rejected for {Username}", hello.Username);
+        }
     }
     catch (Exception ex)
     {
-        logger.LogWarning(ex, "Invalid ClientHello received from {Endpoint}", client.Client.RemoteEndPoint);
-        client.Close();
-        return;
+        logger.LogError(ex, "Authentication error for {Username}", hello.Username);
+        isValid = false;
     }
 
-    var result = await loginHandler.ProcessAsync(hello);
-    await TcpHelpers.WriteFrameAsync(ns, result.AuthResponse.Write());
+    await ReportLoginMetricsAsync(isValid);
 
-    if (!result.AuthResponse.Success)
+    await TcpHelpers.WriteFrameAsync(ns, PcV2Codec.WriteAuthResponse(isValid, isValid ? "ok" : "invalid"), format: FrameFormat.PcV2);
+
+    if (!isValid)
     {
         client.Close();
         return;
     }
 
-    await TcpHelpers.WriteFrameAsync(ns, result.WorldList.Write());
+    var worldList = PcV2Codec.WriteWorldList(new[]
+    {
+        new WorldEntry("World-1", "127.0.0.1", 12001),
+    });
+
+    await TcpHelpers.WriteFrameAsync(ns, worldList, format: FrameFormat.PcV2);
     client.Close();
 }
 
